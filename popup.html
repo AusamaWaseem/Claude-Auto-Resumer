@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Claude Auto-Resume</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0d0d;
+    --surface:  #161616;
+    --border:   #222;
+    --text:     #e5e5e5;
+    --muted:    #6b7280;
+    --accent:   #f59e0b;
+    --green:    #22c55e;
+    --red:      #ef4444;
+  }
+
+  body { width: 300px; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .tab  { flex: 1; padding: 11px 0; font-size: 11px; font-weight: 700; letter-spacing: .04em;
+          text-align: center; cursor: pointer; color: var(--muted); background: none; border: none;
+          border-bottom: 2px solid transparent; transition: all .2s; text-transform: uppercase; }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Panels ── */
+  .panel { display: none; padding: 14px; }
+  .panel.active { display: block; }
+
+  /* ── Cards ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+          padding: 11px 13px; margin-bottom: 9px; }
+  .card-label { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 3px; }
+  .card-value { font-size: 13px; font-weight: 600; color: #fff; }
+  .card-value.sm { font-size: 11px; font-weight: 400; color: #9ca3af; word-break: break-all; }
+
+  /* ── Track rows ── */
+  .track { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .track:last-child { border: none; padding-bottom: 0; }
+  .track-icon { font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; }
+  .track-name { font-size: 12px; font-weight: 600; color: #d1d5db; }
+  .track-val  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Status dot ── */
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; flex-shrink: 0; }
+  .dot-g { background: var(--green);  box-shadow: 0 0 5px #22c55e66; }
+  .dot-a { background: var(--accent); box-shadow: 0 0 5px #f59e0b66; }
+  .dot-r { background: var(--red);    box-shadow: 0 0 5px #ef444466; }
+  .dot-z { background: #374151; }
+
+  /* ── Inputs ── */
+  .field-label { font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+                 color: var(--muted); margin-bottom: 4px; margin-top: 10px; }
+  .field-label:first-child { margin-top: 0; }
+  input { width: 100%; background: #1a1a1a; border: 1px solid var(--border); border-radius: 8px;
+          padding: 8px 11px; font-size: 12px; color: #fff; outline: none; }
+  input:focus { border-color: var(--accent); }
+
+  /* ── Buttons ── */
+  .btn { width: 100%; padding: 9px; border: none; border-radius: 8px; font-size: 12px;
+         font-weight: 700; cursor: pointer; transition: opacity .15s; margin-top: 7px;
+         letter-spacing: .02em; }
+  .btn:hover:not(:disabled) { opacity: .85; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-primary { background: #b45309; color: #fff; }
+  .btn-ghost   { background: #1f1f1f; color: #d1d5db; }
+  .btn-danger  { background: #7f1d1d; color: #fca5a5; margin-top: 10px; }
+
+  /* ── Notices ── */
+  .notice { border-radius: 8px; padding: 9px 12px; font-size: 11px; line-height: 1.6;
+            margin-top: 8px; display: none; }
+  .n-ok   { background: #052e16; border: 1px solid #14532d; color: #86efac; }
+  .n-err  { background: #2d0c0c; border: 1px solid #7f1d1d; color: #fca5a5; }
+  .n-warn { background: #1c1608; border: 1px solid #3d2e06; color: #fbbf24; }
+
+  /* ── Setup steps ── */
+  .steps { margin-bottom: 12px; }
+  .step { display: flex; gap: 10px; margin-bottom: 10px; }
+  .step-n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: #000;
+             font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content:center; flex-shrink: 0; margin-top: 2px; }
+  .step-t { font-size: 12px; color: #d1d5db; line-height: 1.55; }
+  .step-t strong { color: #fff; }
+  .step-t a { color: #fbbf24; text-decoration: none; }
+  code { background: #1a1a1a; border: 1px solid var(--border); border-radius: 4px;
+         padding: 1px 6px; font-size: 11px; font-family: monospace; color: #e5e5e5; user-select: all; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Footer ── */
+  .footer { padding: 8px 14px 10px; font-size: 10px; color: #374151; text-align: center;
+            border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" data-p="status">Status</button>
+  <button class="tab"        data-p="server">🌐 Server</button>
+  <button class="tab"        data-p="phone" >📱 Phone</button>
+</div>
+
+<!-- ── STATUS ──────────────────────────────────── -->
+<div class="panel active" id="panel-status">
+
+  <div class="card">
+    <div class="card-label">Status</div>
+    <div class="card-value" id="overallStatus">Checking…</div>
+  </div>
+
+  <div class="card" id="tracksCard" style="display:none">
+    <div class="card-label">Resume Tracks</div>
+    <div class="track">
+      <div class="track-icon">🌐</div>
+      <div>
+        <div class="track-name">Cloud Server</div>
+        <div class="track-val" id="tServer">—</div>
+      </div>
+    </div>
+    <div class="track">
+      <div class="track-icon">💻</div>
+      <div>
+        <div class="track-name">Local Alarm</div>
+        <div class="track-val" id="tLocal">—</div>
+      </div>
+    </div>
+    <div class="track">
+      <div class="track-icon">📱</div>
+      <div>
+        <div class="track-name">Phone (ntfy)</div>
+        <div class="track-val" id="tNtfy">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="timerCard" style="display:none">
+    <div class="card-label">Resumes At</div>
+    <div class="card-value" id="resumeTime">—</div>
+  </div>
+
+  <div class="card" id="urlCard" style="display:none">
+    <div class="card-label">Chat</div>
+    <div class="card-value sm" id="chatUrl">—</div>
+  </div>
+
+  <button class="btn btn-danger" id="cancelBtn" disabled>Cancel Auto-Resume</button>
+</div>
+
+<!-- ── SERVER ──────────────────────────────────── -->
+<div class="panel" id="panel-server">
+  <div class="steps">
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-t">Deploy the <strong>/server</strong> folder to <a href="https://render.com" target="_blank">Render.com</a> (free) — see README for one-click guide.</div>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-t">
+        Set these environment variables on Render:<br>
+        <code>API_KEY</code> = any secret string<br>
+        <code>PORT</code> = 3000
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-t">Paste your Render URL and API key below.</div>
+    </div>
+  </div>
+
+  <div class="field-label">Server URL</div>
+  <input type="text"     id="serverUrl" placeholder="https://your-app.onrender.com"/>
+
+  <div class="field-label">API Key</div>
+  <input type="password" id="apiKey"    placeholder="your-secret-api-key"/>
+
+  <button class="btn btn-primary" id="saveServerBtn">Save &amp; Test Connection</button>
+
+  <div class="notice" id="serverNotice"></div>
+
+  <hr/>
+  <p class="hint">The server sends <strong>"continue"</strong> directly to Claude.ai using your session token — fully automatic, even with your PC off.</p>
+</div>
+
+<!-- ── PHONE ───────────────────────────────────── -->
+<div class="panel" id="panel-phone">
+  <p class="hint" style="margin-bottom:12px">Backup notification when the server isn't configured. You'll tap once to open Claude.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-t">Install <a href="https://ntfy.sh" target="_blank"><strong>ntfy</strong></a> on your phone (free, iOS &amp; Android)</div>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-t">Tap <strong>+</strong> in ntfy and subscribe to a unique topic, e.g. <code>claude-mr-awesome-42</code></div>
+    </div>
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-t">Enter that same topic name below and save.</div>
+    </div>
+  </div>
+
+  <div class="field-label">ntfy Topic</div>
+  <input type="text" id="ntfyTopic" placeholder="e.g. claude-mr-awesome-42"/>
+
+  <button class="btn btn-primary" id="saveNtfyBtn">Save Topic</button>
+  <button class="btn btn-ghost"   id="testNtfyBtn">Send Test Notification</button>
+
+  <div class="notice" id="ntfyNotice"></div>
+</div>
+
+<div class="footer">
+  Server = fully automatic &nbsp;·&nbsp; ntfy = one tap &nbsp;·&nbsp; Local = browser must stay open
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

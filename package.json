@@ -1,0 +1,18 @@
+{
+  "name": "claude-auto-resume-server",
+  "version": "1.0.0",
+  "description": "Cloud server for Claude Auto-Resume — sends 'continue' to Claude.ai when cooldown ends",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev":   "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "keywords": ["claude", "anthropic", "auto-resume", "cooldown"],
+  "license": "MIT"
+}
